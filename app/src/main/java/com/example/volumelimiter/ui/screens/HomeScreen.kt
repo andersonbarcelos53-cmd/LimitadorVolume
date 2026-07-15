@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,7 +42,10 @@ fun HomeScreen(
     onAddApp: () -> Unit,
     onOpenConfig: (String) -> Unit,
     onOpenInfo: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onLockNow: () -> Unit,
     onOpenUsageSettings: () -> Unit,
+    onOpenBatterySettings: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -54,6 +59,12 @@ fun HomeScreen(
                 actions = {
                     IconButton(onClick = onOpenInfo) {
                         Icon(Icons.Rounded.Info, contentDescription = "Informações")
+                    }
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Rounded.Settings, contentDescription = "Configurações")
+                    }
+                    IconButton(onClick = onLockNow) {
+                        Icon(Icons.Rounded.Lock, contentDescription = "Bloquear agora")
                     }
                 },
             )
@@ -69,6 +80,7 @@ fun HomeScreen(
             item {
                 MonitoringHeader(
                     state = state,
+                    onLockNow = onLockNow,
                     onCheckedChange = { checked ->
                         if (checked) {
                             if (!state.usagePermissionGranted) {
@@ -105,6 +117,17 @@ fun HomeScreen(
                         message = "A notificação permanente informa que o monitoramento está ativo.",
                         buttonText = "Permitir notificação",
                         onClick = onRequestNotificationPermission,
+                    )
+                }
+            }
+
+            if (!state.ignoringBatteryOptimizations) {
+                item {
+                    PermissionNotice(
+                        title = "Bateria pode restringir o serviço",
+                        message = "Alguns aparelhos encerram apps em segundo plano. Remova a restrição de bateria se o monitoramento parar sozinho.",
+                        buttonText = "Abrir bateria",
+                        onClick = onOpenBatterySettings,
                     )
                 }
             }
@@ -161,6 +184,7 @@ fun HomeScreen(
 @Composable
 private fun MonitoringHeader(
     state: MainUiState,
+    onLockNow: () -> Unit,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -168,29 +192,44 @@ private fun MonitoringHeader(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.small,
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "Ativar monitoramento",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = if (state.status.isServiceRunning) "Serviço ativo" else "Serviço parado",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Ativar monitoramento",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = if (state.status.isServiceRunning) "Serviço ativo" else "Serviço parado",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.monitoringEnabled,
+                    onCheckedChange = onCheckedChange,
                 )
             }
-            Switch(
-                checked = state.monitoringEnabled,
-                onCheckedChange = onCheckedChange,
+            Text(
+                text = "Proteção ativa",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium,
             )
+            Button(onClick = onLockNow) {
+                Icon(Icons.Rounded.Lock, contentDescription = null)
+                Text("Bloquear agora")
+            }
         }
     }
 }

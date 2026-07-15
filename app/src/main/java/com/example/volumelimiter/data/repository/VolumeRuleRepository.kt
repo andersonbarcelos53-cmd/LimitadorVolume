@@ -44,4 +44,20 @@ class VolumeRuleRepository(
     suspend fun setMonitoringEnabled(enabled: Boolean) {
         dataStore.setMonitoringEnabled(enabled)
     }
+
+    suspend fun savePinHash(hash: String, salt: String) {
+        dataStore.savePinHash(hash, salt)
+    }
+
+    suspend fun setAutoStartOnBoot(enabled: Boolean) {
+        dataStore.setAutoStartOnBoot(enabled)
+    }
+
+    suspend fun setAutoLockTimeoutSeconds(seconds: Int) {
+        dataStore.setAutoLockTimeoutSeconds(seconds)
+    }
+
+    suspend fun setShowNotificationDetails(show: Boolean) {
+        dataStore.setShowNotificationDetails(show)
+    }
 }

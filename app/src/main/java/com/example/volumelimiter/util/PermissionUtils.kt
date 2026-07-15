@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 
@@ -48,6 +49,12 @@ object PermissionUtils {
             putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+
+    fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
+        val powerManager = context.getSystemService(PowerManager::class.java) ?: return false
+        return powerManager.isIgnoringBatteryOptimizations(context.packageName)
+    }
 
     fun appDetailsSettingsIntent(context: Context): Intent =
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {

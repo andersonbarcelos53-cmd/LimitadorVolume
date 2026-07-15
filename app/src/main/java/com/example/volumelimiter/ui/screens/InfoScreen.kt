@@ -68,7 +68,7 @@ fun InfoScreen(
 
             InfoCard(
                 title = "Notificação permanente",
-                text = "Enquanto o monitoramento estiver ativo, o Android exibe uma notificação fixa com uma ação para parar o serviço.",
+                text = "Enquanto o monitoramento estiver ativo, o Android exibe uma notificação fixa. Ela abre o aplicativo, mas não desliga a proteção sem PIN.",
             )
 
             InfoCard(

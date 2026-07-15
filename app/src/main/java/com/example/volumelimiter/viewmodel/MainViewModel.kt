@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.volumelimiter.data.datastore.VolumeDataStore
 import com.example.volumelimiter.data.model.AppVolumeRule
 import com.example.volumelimiter.data.model.MonitoringStatus
+import com.example.volumelimiter.data.model.ParentalControlPreferences
 import com.example.volumelimiter.data.repository.VolumeRuleRepository
 import com.example.volumelimiter.service.VolumeLimiterService
 import com.example.volumelimiter.service.VolumeMonitorStatusStore
@@ -38,6 +39,8 @@ class MainViewModel(
             status = status,
             usagePermissionGranted = permissions.usageStatsGranted,
             notificationPermissionGranted = permissions.notificationGranted,
+            ignoringBatteryOptimizations = permissions.ignoringBatteryOptimizations,
+            parentalControls = preferences.parentalControls,
             actionMessage = message ?: status.lastMessage,
             currentVolumePercent = status.currentVolumePercent
                 ?: volumeController.getCurrentMediaVolumePercent(),
@@ -105,10 +108,44 @@ class MainViewModel(
         }
     }
 
+    fun setAutoStartOnBoot(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.setAutoStartOnBoot(enabled)
+        }
+    }
+
+    fun setAutoLockTimeoutSeconds(seconds: Int) {
+        viewModelScope.launch {
+            repository.setAutoLockTimeoutSeconds(seconds)
+        }
+    }
+
+    fun setShowNotificationDetails(show: Boolean) {
+        viewModelScope.launch {
+            repository.setShowNotificationDetails(show)
+        }
+    }
+
+    fun testVolumeLimit(percent: Int = 50) {
+        val max = volumeController.getMaxMediaVolumeLevel()
+        if (max == null || max <= 0) {
+            actionMessage.value = "Não foi possível acessar o volume de mídia."
+            return
+        }
+        val target = com.example.volumelimiter.domain.usecase.VolumeLevelCalculator
+            .percentToLevel(percent, max)
+        if (volumeController.setMediaVolumeLevel(target)) {
+            actionMessage.value = "Volume ajustado para teste em $percent%."
+        } else {
+            actionMessage.value = "Não foi possível ajustar o volume de teste."
+        }
+    }
+
     private fun readPermissions(): PermissionState =
         PermissionState(
             usageStatsGranted = PermissionUtils.hasUsageStatsPermission(appContext),
             notificationGranted = PermissionUtils.hasNotificationPermission(appContext),
+            ignoringBatteryOptimizations = PermissionUtils.isIgnoringBatteryOptimizations(appContext),
         )
 }
 
@@ -118,6 +155,8 @@ data class MainUiState(
     val status: MonitoringStatus = MonitoringStatus(),
     val usagePermissionGranted: Boolean = false,
     val notificationPermissionGranted: Boolean = true,
+    val ignoringBatteryOptimizations: Boolean = true,
+    val parentalControls: ParentalControlPreferences = ParentalControlPreferences(),
     val actionMessage: String? = null,
     val currentVolumePercent: Int? = null,
 )
@@ -125,4 +164,5 @@ data class MainUiState(
 private data class PermissionState(
     val usageStatsGranted: Boolean,
     val notificationGranted: Boolean,
+    val ignoringBatteryOptimizations: Boolean,
 )

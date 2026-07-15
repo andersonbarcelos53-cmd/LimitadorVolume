@@ -9,11 +9,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.volumelimiter.MainActivity
 import com.example.volumelimiter.R
 import com.example.volumelimiter.data.datastore.VolumeDataStore
+import com.example.volumelimiter.data.model.AppVolumeRule
 import com.example.volumelimiter.data.model.VolumeLimiterPreferences
 import com.example.volumelimiter.data.repository.InstalledAppRepository
 import com.example.volumelimiter.data.repository.VolumeRuleRepository
@@ -44,9 +46,11 @@ class VolumeLimiterService : Service() {
     private lateinit var installedAppRepository: InstalledAppRepository
     private lateinit var detector: ForegroundAppDetector
     private lateinit var volumeController: VolumeController
+    private lateinit var notificationManager: NotificationManager
 
     private var latestPreferences: VolumeLimiterPreferences? = null
     private var monitorJob: Job? = null
+    private var lastNotificationText: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -54,6 +58,7 @@ class VolumeLimiterService : Service() {
         installedAppRepository = InstalledAppRepository(applicationContext)
         detector = ForegroundAppDetector(applicationContext)
         volumeController = VolumeController(applicationContext)
+        notificationManager = requireNotNull(getSystemService(NotificationManager::class.java))
 
         createNotificationChannel()
         VolumeMonitorStatusStore.setServiceRunning(true)
@@ -80,6 +85,11 @@ class VolumeLimiterService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.i(TAG, "Tela removida dos recentes; serviço foreground permanece ativo quando permitido.")
+        super.onTaskRemoved(rootIntent)
+    }
 
     override fun onDestroy() {
         restoreBeforeDestroy()
@@ -109,7 +119,9 @@ class VolumeLimiterService : Service() {
         }
 
         runCatching {
-            startForeground(NOTIFICATION_ID, buildNotification())
+            val notificationData = buildNotificationData(latestPreferences, null)
+            lastNotificationText = notificationData.text
+            startForeground(NOTIFICATION_ID, buildNotification(notificationData))
         }.onFailure { error ->
             scope.launch { repository.setMonitoringEnabled(false) }
             VolumeMonitorStatusStore.update {
@@ -200,6 +212,7 @@ class VolumeLimiterService : Service() {
                 },
             )
         }
+        updateNotification(preferences, rule)
     }
 
     private suspend fun requestStop(updatePreference: Boolean) {
@@ -237,11 +250,40 @@ class VolumeLimiterService : Service() {
         ).apply {
             description = getString(R.string.notification_channel_description)
         }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager?.createNotificationChannel(channel)
+        notificationManager.createNotificationChannel(channel)
     }
 
-    private fun buildNotification(): Notification {
+    private fun updateNotification(
+        preferences: VolumeLimiterPreferences,
+        activeRule: AppVolumeRule?,
+    ) {
+        runCatching {
+            val notificationData = buildNotificationData(preferences, activeRule)
+            if (notificationData.text != lastNotificationText) {
+                lastNotificationText = notificationData.text
+                notificationManager.notify(
+                    NOTIFICATION_ID,
+                    buildNotification(notificationData),
+                )
+            }
+        }
+    }
+
+    private fun buildNotificationData(
+        preferences: VolumeLimiterPreferences?,
+        activeRule: AppVolumeRule?,
+    ): NotificationData {
+        val showDetails = preferences?.parentalControls?.showNotificationDetails ?: true
+        val protectedAppCount = preferences?.protectedAppCount ?: 0
+        val text = when {
+            !showDetails -> getString(R.string.notification_description)
+            activeRule != null -> "Limitando ${activeRule.appName} a ${activeRule.maxVolumePercent}%"
+            else -> "Monitorando $protectedAppCount aplicativo${if (protectedAppCount == 1) "" else "s"}"
+        }
+        return NotificationData(text = text)
+    }
+
+    private fun buildNotification(notificationData: NotificationData): Notification {
         val contentIntent = PendingIntent.getActivity(
             this,
             REQUEST_CONTENT,
@@ -249,24 +291,18 @@ class VolumeLimiterService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
-        val stopIntent = PendingIntent.getService(
-            this,
-            REQUEST_STOP,
-            Intent(this, VolumeLimiterService::class.java).setAction(ACTION_STOP),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(getString(R.string.notification_title))
-            .setContentText(getString(R.string.notification_description))
+            .setContentText(notificationData.text)
             .setOngoing(true)
             .setContentIntent(contentIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOnlyAlertOnce(true)
             .addAction(
                 R.drawable.ic_launcher_foreground,
-                getString(R.string.notification_stop),
-                stopIntent,
+                getString(R.string.notification_open_app),
+                contentIntent,
             )
             .build()
     }
@@ -277,9 +313,9 @@ class VolumeLimiterService : Service() {
         const val CHANNEL_ID = "volume_limiter_monitoring"
         const val NOTIFICATION_ID = 2001
         const val MONITORING_INTERVAL_MS = 750L
+        private const val TAG = "VolumeLimiterService"
 
         private const val REQUEST_CONTENT = 1
-        private const val REQUEST_STOP = 2
 
         fun start(context: Context): Boolean {
             val intent = Intent(context, VolumeLimiterService::class.java).setAction(ACTION_START)
@@ -296,3 +332,7 @@ class VolumeLimiterService : Service() {
         }
     }
 }
+
+private data class NotificationData(
+    val text: String,
+)

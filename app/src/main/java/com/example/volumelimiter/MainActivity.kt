@@ -14,9 +14,11 @@ import com.example.volumelimiter.ui.navigation.VolumeLimiterApp
 import com.example.volumelimiter.ui.theme.VolumeLimiterTheme
 import com.example.volumelimiter.util.PermissionUtils
 import com.example.volumelimiter.viewmodel.MainViewModel
+import com.example.volumelimiter.viewmodel.SecurityViewModel
 
 class MainActivity : ComponentActivity() {
     private val mainViewModel: MainViewModel by viewModels()
+    private val securityViewModel: SecurityViewModel by viewModels()
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,11 +34,15 @@ class MainActivity : ComponentActivity() {
             VolumeLimiterTheme {
                 VolumeLimiterApp(
                     mainViewModel = mainViewModel,
+                    securityViewModel = securityViewModel,
                     onOpenUsageSettings = {
                         startActivitySafely(PermissionUtils.usageAccessSettingsIntent())
                     },
                     onOpenAppSettings = {
                         startActivitySafely(PermissionUtils.appDetailsSettingsIntent(this))
+                    },
+                    onOpenNotificationSettings = {
+                        startActivitySafely(PermissionUtils.appNotificationSettingsIntent(this))
                     },
                     onOpenBatterySettings = {
                         startActivitySafely(PermissionUtils.batteryOptimizationSettingsIntent())
@@ -50,6 +56,16 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         mainViewModel.refreshPermissions()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        securityViewModel.onAppForegrounded()
+    }
+
+    override fun onStop() {
+        securityViewModel.onAppBackgrounded()
+        super.onStop()
     }
 
     private fun requestNotificationPermission() {

@@ -4,6 +4,8 @@ Aplicativo Android nativo em Kotlin que permite selecionar aplicativos instalado
 
 O limite altera o volume geral de mídia do aparelho. O Android não oferece uma API pública para controlar separadamente o áudio interno de cada aplicativo comum.
 
+Esta versão adiciona proteção parental por PIN. As configurações administrativas ficam bloqueadas até que o PIN seja informado.
+
 ## Tecnologias
 
 - Kotlin
@@ -16,6 +18,7 @@ O limite altera o volume geral de mídia do aparelho. O Android não oferece uma
 - AudioManager
 - Foreground Service
 - Coroutines e StateFlow
+- Proteção por PIN com hash SHA-256 e salt
 
 ## Como abrir no Android Studio
 
@@ -62,6 +65,9 @@ Os testes cobrem:
 - Restauração do volume.
 - Troca direta entre dois aplicativos monitorados.
 - Volume abaixo e acima do limite.
+- Criação, validação e hash/salt do PIN.
+- Bloqueio automático da sessão administrativa.
+- Política de reinício após boot.
 
 ## Como gerar um APK de teste
 
@@ -104,7 +110,17 @@ No Android 13 ou superior, o app solicita `POST_NOTIFICATIONS` para exibir a not
 
 ### Serviço em primeiro plano
 
-O monitoramento usa um Foreground Service com notificação fixa. A notificação possui uma ação para interromper o monitoramento.
+O monitoramento usa um Foreground Service com notificação fixa. A notificação abre o aplicativo, mas não oferece botão para desligar a proteção sem PIN.
+
+## Proteção parental
+
+Na primeira abertura, o aplicativo solicita a criação de um PIN de 4 a 6 dígitos. O PIN não é salvo como texto puro: o app salva apenas hash SHA-256 com salt no DataStore.
+
+Nas próximas aberturas, a tela de configuração só é exibida depois da autenticação. O Foreground Service continua funcionando mesmo com o painel bloqueado.
+
+O painel bloqueia novamente quando fica em segundo plano pelo tempo configurado, inicialmente 30 segundos. Também é possível tocar em `Bloquear agora`.
+
+Se o PIN for esquecido, a primeira versão exige limpar os dados do aplicativo nas configurações do Android. Isso apaga também as regras configuradas.
 
 ## Remover restrição de bateria
 
@@ -134,7 +150,12 @@ Os nomes exatos variam conforme Samsung, Xiaomi, Motorola e outros fabricantes.
 - A detecção por eventos pode variar entre fabricantes.
 - Serviços em primeiro plano podem sofrer restrições agressivas de bateria.
 - Reinício automático após ligar o aparelho pode ser bloqueado em versões ou fabricantes específicos do Android.
+- O Android não reinicia automaticamente um app após o usuário tocar em `Forçar parada`.
 - Se o usuário reduzir manualmente o volume durante a sessão, o app evita restaurar um valor antigo para não desfazer uma ação intencional.
+
+## Privacidade
+
+O aplicativo funciona totalmente no aparelho. Ele não usa anúncios, analytics, rastreamento, servidor externo, cadastro de usuário nem acesso à internet. As regras, preferências e dados de PIN ficam armazenados localmente no DataStore.
 
 ## Estrutura principal
 

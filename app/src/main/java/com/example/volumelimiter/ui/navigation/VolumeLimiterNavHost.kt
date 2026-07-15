@@ -2,7 +2,9 @@ package com.example.volumelimiter.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -12,17 +14,44 @@ import com.example.volumelimiter.ui.screens.AppConfigScreen
 import com.example.volumelimiter.ui.screens.AppSelectionScreen
 import com.example.volumelimiter.ui.screens.HomeScreen
 import com.example.volumelimiter.ui.screens.InfoScreen
+import com.example.volumelimiter.ui.screens.PinLockScreen
+import com.example.volumelimiter.ui.screens.PinSetupScreen
+import com.example.volumelimiter.ui.screens.SecurityScreen
+import com.example.volumelimiter.ui.screens.SettingsScreen
 import com.example.volumelimiter.viewmodel.MainViewModel
+import com.example.volumelimiter.viewmodel.SecurityViewModel
 
 @Composable
 fun VolumeLimiterApp(
     mainViewModel: MainViewModel,
+    securityViewModel: SecurityViewModel,
     onOpenUsageSettings: () -> Unit,
     onOpenAppSettings: () -> Unit,
+    onOpenNotificationSettings: () -> Unit,
     onOpenBatterySettings: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val securityState by securityViewModel.uiState.collectAsStateWithLifecycle()
+
+    if (!securityState.isPinConfigured) {
+        PinSetupScreen(
+            state = securityState,
+            onCreatePin = securityViewModel::createPin,
+            modifier = modifier,
+        )
+        return
+    }
+
+    if (!securityState.isUnlocked) {
+        PinLockScreen(
+            state = securityState,
+            onUnlock = securityViewModel::authenticate,
+            modifier = modifier,
+        )
+        return
+    }
+
     val navController = rememberNavController()
 
     NavHost(
@@ -38,7 +67,10 @@ fun VolumeLimiterApp(
                     navController.navigate(Routes.config(packageName))
                 },
                 onOpenInfo = { navController.navigate(Routes.Info) },
+                onOpenSettings = { navController.navigate(Routes.Settings) },
+                onLockNow = securityViewModel::lockNow,
                 onOpenUsageSettings = onOpenUsageSettings,
+                onOpenBatterySettings = onOpenBatterySettings,
                 onRequestNotificationPermission = onRequestNotificationPermission,
             )
         }
@@ -77,6 +109,25 @@ fun VolumeLimiterApp(
                 onOpenBatterySettings = onOpenBatterySettings,
             )
         }
+
+        composable(Routes.Settings) {
+            SettingsScreen(
+                viewModel = mainViewModel,
+                onBack = { navController.popBackStack() },
+                onOpenUsageSettings = onOpenUsageSettings,
+                onOpenNotificationSettings = onOpenNotificationSettings,
+                onOpenBatterySettings = onOpenBatterySettings,
+                onOpenSecurity = { navController.navigate(Routes.Security) },
+                onLockNow = securityViewModel::lockNow,
+            )
+        }
+
+        composable(Routes.Security) {
+            SecurityScreen(
+                viewModel = securityViewModel,
+                onBack = { navController.popBackStack() },
+            )
+        }
     }
 }
 
@@ -84,6 +135,8 @@ private object Routes {
     const val Home = "home"
     const val SelectApp = "select_app"
     const val Info = "info"
+    const val Settings = "settings"
+    const val Security = "security"
     const val ConfigPackageArg = "packageName"
     const val Config = "config/{$ConfigPackageArg}"
 
