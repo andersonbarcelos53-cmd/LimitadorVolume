@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Limitador de Volume</string>
+    <string name="fgs_special_use_subtype">Monitoramento periódico do aplicativo em primeiro plano para limitar o volume de mídia configurado pelo usuário.</string>
+    <string name="notification_channel_description">Avisa quando o limitador está monitorando aplicativos.</string>
+    <string name="notification_channel_name">Monitoramento de volume</string>
+    <string name="notification_description">Monitorando os aplicativos selecionados</string>
+    <string name="notification_stop">Parar</string>
+    <string name="notification_title">Limitador de volume ativo</string>
+    <style name="Theme.VolumeLimiter" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#2A6FDB</item>
+    </style>
+</resources>
